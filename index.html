@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'M PLUS Rounded 1c', sans-serif; }
+        body { font-family: 'M PLUS Rounded 1c', sans-serif; touch-action: manipulation; }
         .hidden-screen { display: none !important; }
         
         ::-webkit-scrollbar { width: 6px; }
@@ -61,6 +61,34 @@
         
         /* Mobile Safe Area Padding */
         .safe-top-padding { padding-top: calc(env(safe-area-inset-top) + 20px); }
+
+        /* Keypad Styling */
+        .keypad-btn {
+            background-color: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s;
+            height: 56px; 
+        }
+        .keypad-btn:active { background-color: #d1d5db; transform: scale(0.98); }
+        .keypad-btn.action { background-color: #fee2e2; color: #b91c1c; }
+        .keypad-btn.submit { background-color: #2563eb; color: white; border: none; }
+        .keypad-btn.submit:active { background-color: #1d4ed8; }
+
+        /* Problem Text Wrapping */
+        #problem-text {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            line-height: 1.8;
+        }
+        .katex-display { margin: 0.5em 0; overflow-x: auto; overflow-y: hidden; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 h-screen w-screen overflow-hidden safe-top-padding">
@@ -146,42 +174,46 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center items-start">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 md:p-12 max-w-4xl w-full mt-4 mb-32 relative">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 md:p-12 max-w-4xl w-full mt-4 mb-64 relative">
                 <div id="review-badge" class="hidden absolute top-4 right-4 bg-gray-100 text-gray-500 text-xs font-bold px-2 py-1 rounded">ARCHIVE VIEW</div>
-                <div class="text-xl md:text-3xl leading-relaxed font-medium text-gray-800 overflow-x-auto break-words" id="problem-text"></div>
+                <div class="text-xl md:text-3xl leading-relaxed font-medium text-gray-800" id="problem-text"></div>
                 <div class="mt-8 pt-8 border-t border-gray-100 text-sm text-gray-400" id="problem-rule"></div>
             </div>
         </div>
 
-        <div class="answer-dock bg-white border-t border-gray-200 p-4 md:p-6 z-30 w-full absolute bottom-0">
-            <div class="max-w-4xl mx-auto flex flex-col gap-4">
-                <div class="relative input-area">
+        <div class="answer-dock bg-white border-t border-gray-200 p-4 z-30 w-full absolute bottom-0">
+            <div class="max-w-md mx-auto">
+                <div class="relative input-area mb-3">
                     <div class="flex gap-2 items-center">
                         <div class="flex-1 math-input-container relative bg-gray-50 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition">
                             <div id="math-overlay" class="math-input-overlay text-lg font-mono"></div>
                             <input type="text" id="answer-input" 
-                                class="math-input-real w-full px-4 py-3 text-lg font-mono outline-none" 
+                                class="math-input-real w-full px-4 py-3 text-lg font-mono outline-none text-right tracking-widest" 
                                 placeholder="解答を入力..." 
                                 oninput="updateMathInput(this.value)"
-                                autocomplete="off">
+                                autocomplete="off" readonly>
                         </div>
-                        <button onclick="submitCurrentAnswer()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-lg shadow-md transition transform active:scale-95 whitespace-nowrap">提 出</button>
                     </div>
                 </div>
                 
-                <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    <div class="flex gap-2 input-area">
-                        <button class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded px-4 py-2 font-mono text-gray-600 shrink-0" onclick="insertText('x')">x</button>
-                        <button class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded px-4 py-2 font-mono text-gray-600 shrink-0" onclick="insertText('y')">y</button>
-                        <button class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded px-4 py-2 font-mono text-gray-600 shrink-0" onclick="insertText('²')">²</button>
-                        <button class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded px-4 py-2 font-mono text-gray-600 shrink-0" onclick="insertText('√')">√</button>
-                        <button class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded px-4 py-2 font-mono text-gray-600 shrink-0" onclick="insertText('/')">/</button>
-                        <button class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded px-4 py-2 font-mono text-gray-600 shrink-0" onclick="insertText('(')">(</button>
-                        <button class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded px-4 py-2 font-mono text-gray-600 shrink-0" onclick="insertText(')')">)</button>
-                    </div>
-                    <div class="flex-1"></div>
-                    <button class="text-gray-400 hover:text-gray-600 font-bold px-2" onclick="navQuestion(-1)">← PREV</button>
-                    <button class="text-gray-400 hover:text-gray-600 font-bold px-2" onclick="navQuestion(1)">NEXT →</button>
+                <div id="keypad-area" class="grid grid-cols-4 gap-2">
+                    <button class="keypad-btn" onclick="kp('7')">7</button>
+                    <button class="keypad-btn" onclick="kp('8')">8</button>
+                    <button class="keypad-btn" onclick="kp('9')">9</button>
+                    <button class="keypad-btn action" onclick="kp('BS')">⌫</button>
+                    
+                    <button class="keypad-btn" onclick="kp('4')">4</button>
+                    <button class="keypad-btn" onclick="kp('5')">5</button>
+                    <button class="keypad-btn" onclick="kp('6')">6</button>
+                    <button class="keypad-btn" onclick="kp('-')">－</button>
+                    
+                    <button class="keypad-btn" onclick="kp('1')">1</button>
+                    <button class="keypad-btn" onclick="kp('2')">2</button>
+                    <button class="keypad-btn" onclick="kp('3')">3</button>
+                    <button class="keypad-btn" onclick="kp(',')">,</button>
+                    
+                    <button class="keypad-btn" onclick="kp('0')">0</button>
+                    <button class="keypad-btn submit col-span-3" onclick="submitCurrentAnswer()">提出 / Submit</button>
                 </div>
             </div>
         </div>
@@ -310,12 +342,28 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const QUESTIONS = [
-            { id: "q1", text: "x^2 - 4x + 3 = 0 \\text{ の解を求めよ。}", rule: "数値のみ, カンマ区切り", answer: ["1,3", "3,1", "x=1,3", "x=3,1"] },
-            { id: "q2", text: "\\text{点}Q\\text{が放物線 } y=x^2-2x+4 \\text{ 上を動くとき、点}A(2,2)\\text{と点}Q\\text{を結ぶ線分}QA\\text{を} 3:2 \\text{ に外分する点}P\\text{の軌跡を求めよ。}", rule: "方程式のみ", answer: ["y=x^2-6x+13", "x^2-6x+13=y"] },
-            { id: "q3", text: "\\int_{0}^{1} (3x^2 + 2x + 1) dx \\text{ を計算せよ。}", rule: "数値のみ", answer: ["3"] },
-            { id: "q4", text: "\\text{三角形ABCにおいて、} a=3, b=4, C=60^\\circ \\text{のとき、} c \\text{の値を求めよ。}", rule: "数値またはルート", answer: ["\\sqrt{13}", "√13"] },
-            { id: "q5", text: "\\sum_{k=1}^{n} k(k+1) \\text{ を } n \\text{を用いて表せ。}", rule: "nの式（展開不要）", answer: ["\\frac{1}{3}n(n+1)(n+2)", "1/3n(n+1)(n+2)", "n(n+1)(n+2)/3"] }
+        // --- QUESTION BANK ---
+        const QUESTION_BANK = [
+            { id: 1, text: "二次方程式 $x^2 - 5x + 6 = 0$ の解を求めよ。小さい順にカンマ区切りで答えよ。", answer: ["2,3"] },
+            { id: 2, text: "$n=10$ のとき、式 $n^2 + n + 1$ の値を求めよ。", answer: ["111"] },
+            { id: 3, text: "放物線 $y = x^2 - 4x + 9$ の頂点の $y$ 座標を求めよ。", answer: ["5"] },
+            { id: 4, text: "等差数列 $3, 7, 11, ...$ の第10項を求めよ。", answer: ["39"] },
+            { id: 5, text: "$\\log_{2} 32$ の値を求めよ。", answer: ["5"] },
+            { id: 6, text: "ベクトル $\\vec{a}=(3,4)$ の大きさを求めよ。", answer: ["5"] },
+            { id: 7, text: "三角形の3辺の長さが $3, 4, 5$ のとき、その面積を求めよ。", answer: ["6"] },
+            { id: 8, text: "$\\int_{0}^{2} 3x^2 dx$ を計算せよ。", answer: ["8"] },
+            { id: 9, text: "2個のサイコロを同時に投げるとき、和が7になる組み合わせは何通りあるか。", answer: ["6"] },
+            { id: 10, text: "連立方程式 $2x+y=7, x-y=2$ の解 $(x,y)$ について、$x+y$ の値を求めよ。", answer: ["4"] }, 
+            { id: 11, text: "$x^2-6x+k=0$ が重解を持つとき、定数 $k$ の値を求めよ。", answer: ["9"] },
+            { id: 12, text: "$\\sin 30^\\circ + \\cos 60^\\circ$ の値を求めよ。", answer: ["1"] },
+            { id: 13, text: "$100$ の約数の個数を求めよ。", answer: ["9"] },
+            { id: 14, text: "初項2、公比3の等比数列の第4項を求めよ。", answer: ["54"] },
+            { id: 15, text: "円 $x^2 + y^2 = 25$ 上の点 $(3,4)$ における接線の傾きを求めよ。分数 $-a/b$ の形で答えよ。", answer: ["-3/4"] },
+            { id: 16, text: "$\\sum_{k=1}^{10} k$ の値を求めよ。", answer: ["55"] },
+            { id: 17, text: "2進数 $1011$ を10進数に直せ。", answer: ["11"] },
+            { id: 18, text: "男子3人、女子2人が一列に並ぶとき、女子2人が隣り合う並び方は何通りか。", answer: ["48"] },
+            { id: 19, text: "$|x-3|=5$ を満たす正の数 $x$ を求めよ。", answer: ["8"] },
+            { id: 20, text: "$f(x)=x^3-3x^2+5$ のとき、$f'(2)$ の値を求めよ。", answer: ["0"] }
         ];
 
         let currentUser = null;
@@ -327,6 +375,7 @@
         let isReviewMode = false;
         let adminGridSize = 'md';
         let countdownInterval = null;
+        let currentQuestions = []; // To store the 5 selected questions
 
         const ADMIN_NAME = "admin"; const ADMIN_PASS = "098545";
 
@@ -537,6 +586,14 @@
             currentEventId = eventId;
             const evtSnap = await get(ref(db, `events/${eventId}`));
             const evt = evtSnap.val();
+            
+            // ★ LOAD QUESTIONS FROM EVENT DATA
+            if(evt.questionIds) {
+                currentQuestions = evt.questionIds.map(qid => QUESTION_BANK.find(q => q.id === qid)).filter(q=>q);
+            } else {
+                currentQuestions = QUESTION_BANK.slice(0,5); // fallback
+            }
+
             currentEventEndTime = evt.startTime + (evt.duration * 60 * 1000);
             
             await set(ref(db, `events/${eventId}/participants/${currentUser.uid}`), { name: currentUser.name, joinedAt: Date.now(), progress: [false,false,false,false,false] });
@@ -565,7 +622,8 @@
                     document.getElementById('screen-answer').classList.remove('review-mode');
                     document.getElementById('review-badge').classList.add('hidden');
                     document.getElementById('btn-back-lobby-review').classList.add('hidden');
-                    document.querySelectorAll('.input-area').forEach(e => e.style.display = 'flex');
+                    // Show keypad area
+                    document.getElementById('keypad-area').style.display = 'grid';
                     document.getElementById('answer-timer-display').classList.remove('hidden');
                 }
                 if (s === "judging") { resetFinishedScreen(); showScreen('finished'); }
@@ -583,8 +641,17 @@
             backToLobby();
         };
 
-        window.viewArchive = (eventId) => {
+        window.viewArchive = async (eventId) => {
             isReviewMode = true;
+            const evtSnap = await get(ref(db, `events/${eventId}`));
+            const evt = evtSnap.val();
+            // Load questions
+            if(evt.questionIds) {
+                currentQuestions = evt.questionIds.map(qid => QUESTION_BANK.find(q => q.id === qid)).filter(q=>q);
+            } else {
+                currentQuestions = QUESTION_BANK.slice(0,5);
+            }
+
             currentQIndex = 0; userAnswers = ["","","","",""]; userProgress = [false,false,false,false,false];
             showScreen('answer');
             document.getElementById('screen-answer').classList.add('review-mode');
@@ -592,7 +659,8 @@
             document.getElementById('btn-back-lobby-review').classList.remove('hidden');
             document.getElementById('btn-back-lobby-review').onclick = window.backToLobby;
             document.getElementById('answer-timer-display').classList.add('hidden');
-            document.querySelectorAll('.input-area').forEach(e => e.style.display = 'none');
+            // Hide keypad in review
+            document.getElementById('keypad-area').style.display = 'none';
             renderQuestion(); updateNavBubbles();
         };
 
@@ -610,18 +678,47 @@
         }
 
         function renderQuestion() {
-            const q = QUESTIONS[currentQIndex];
+            const q = currentQuestions[currentQIndex]; // Use selected questions
             document.getElementById('display-q-num').innerText = currentQIndex + 1;
             const pel = document.getElementById('problem-text');
-            pel.innerText = `\\[ ${q.text} \\]`;
-            renderMathInElement(pel, {delimiters: [{left: '\\[', right: '\\]', display: true}]});
-            document.getElementById('problem-rule').innerText = "※ " + q.rule;
+            // Use inline math $...$ and allow breaks
+            pel.innerText = `${q.text}`; 
+            renderMathInElement(pel, {delimiters: [{left: '$', right: '$', display: false}]});
+            
             if(!isReviewMode) {
                 const val = userAnswers[currentQIndex];
                 document.getElementById('answer-input').value = val;
                 window.updateMathInput(val);
+            } else {
+                document.getElementById('answer-input').value = "";
+                window.updateMathInput("");
             }
         }
+
+        // ★ Keypad Logic
+        window.kp = (char) => {
+            const input = document.getElementById('answer-input');
+            if(char === 'BS') {
+                input.value = input.value.slice(0, -1);
+            } else {
+                input.value += char;
+            }
+            window.updateMathInput(input.value);
+        };
+
+        // ★ Physical Keyboard Logic
+        document.addEventListener('keydown', (e) => {
+            if(document.getElementById('screen-answer').classList.contains('hidden-screen') || isReviewMode) return;
+            const validChars = "0123456789-,.";
+            if (validChars.includes(e.key)) {
+                window.kp(e.key);
+            } else if (e.key === "Backspace") {
+                window.kp('BS');
+            } else if (e.key === "Enter") {
+                window.submitCurrentAnswer();
+            }
+        });
+
         window.navQuestion = (diff) => {
             const next = currentQIndex + diff;
             if (next >= 0 && next < 5) { 
@@ -691,7 +788,7 @@
                 document.getElementById('my-rate-diff').innerText = diff;
                 
                 list.innerHTML = "";
-                QUESTIONS.forEach((q, i) => {
+                currentQuestions.forEach((q, i) => {
                     const qKey = `q${i+1}`;
                     const myAns = myAnswers[qKey] || "(未回答)";
                     const isCorrect = myData.results[i]; 
@@ -733,9 +830,15 @@
                 if(!title || !timeStr) return alert("入力エラー");
                 const startTime = new Date(timeStr).getTime();
                 const eventId = "evt_" + Math.floor(Date.now() / 1000);
+                
+                // ★ SELECT 5 RANDOM QUESTIONS
+                const shuffled = [...QUESTION_BANK].sort(() => 0.5 - Math.random());
+                const selectedIds = shuffled.slice(0, 5).map(q => q.id);
+
                 await set(ref(db, `events/${eventId}`), {
                     title: title, startTime: startTime, duration: duration, minRate: rate,
-                    status: "waiting", participants: {}
+                    status: "waiting", participants: {},
+                    questionIds: selectedIds // Save IDs
                 });
                 alert("作成完了。");
                 formContainer.classList.add('hidden');
@@ -909,6 +1012,12 @@
                 const answers = (await get(ref(db, `answers/${eventId}`))).val() || {};
                 const participants = (await get(ref(db, `events/${eventId}/participants`))).val() || {};
                 const allUsers = (await get(ref(db, `users`))).val() || {};
+                
+                // ★ Get event to find questions
+                const evtSnap = await get(ref(db, `events/${eventId}`));
+                const evt = evtSnap.val();
+                const judgeQuestions = (evt.questionIds||[]).map(qid => QUESTION_BANK.find(q=>q.id===qid)).filter(q=>q);
+
                 let userResults = [];
                 let questionStats = [0,0,0,0,0];
                 Object.keys(participants).forEach(uid => {
@@ -918,7 +1027,8 @@
                     let results = [];
                     for(let i=0; i<5; i++) {
                         const uAns = (uAnsObj[`q${i+1}`] || "").replace(/\s+/g, '');
-                        const valids = QUESTIONS[i].answer.map(a => a.replace(/\s+/g, ''));
+                        // Check against loaded questions
+                        const valids = judgeQuestions[i] ? judgeQuestions[i].answer.map(a => a.replace(/\s+/g, '')) : [];
                         const isCorrect = valids.includes(uAns);
                         results.push(isCorrect);
                         if(isCorrect) { correctCount++; questionStats[i]++; }
