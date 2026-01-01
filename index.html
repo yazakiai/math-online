@@ -46,7 +46,7 @@
             background: transparent;
             z-index: 10;
             position: relative;
-            font-family: 'M PLUS Rounded 1c', sans-serif; /* Font Fix */
+            font-family: 'M PLUS Rounded 1c', sans-serif;
         }
         .math-input-overlay {
             position: absolute;
@@ -54,12 +54,12 @@
             pointer-events: none;
             display: flex;
             align-items: center;
-            justify-content: flex-start; /* Left align */
+            justify-content: flex-start;
             padding-left: 1rem; 
             z-index: 5;
             color: #374151;
             overflow: hidden;
-            font-family: 'M PLUS Rounded 1c', sans-serif; /* Font Fix */
+            font-family: 'M PLUS Rounded 1c', sans-serif;
         }
         
         /* Mobile Safe Area Padding */
@@ -79,7 +79,7 @@
             transition: all 0.1s;
             height: 44px;
             padding: 0;
-            font-family: 'M PLUS Rounded 1c', sans-serif; /* Font Fix */
+            font-family: 'M PLUS Rounded 1c', sans-serif;
         }
         .keypad-btn:active { background-color: #d1d5db; transform: scale(0.95); }
         .keypad-btn.action { background-color: #fee2e2; color: #b91c1c; font-size: 1rem; }
@@ -284,15 +284,19 @@
                             <input type="number" id="new-evt-duration" class="w-full text-sm p-2 border rounded" value="5">
                         </div>
                         <div class="flex-1">
-                            <label class="text-xs text-gray-400">Min Rate</label>
-                            <input type="number" id="new-evt-rate" class="w-full text-sm p-2 border rounded" value="0">
+                            <label class="text-xs text-gray-400">問題数(1-20)</label>
+                            <input type="number" id="new-evt-qcount" class="w-full text-sm p-2 border rounded" value="5" min="1" max="20">
                         </div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400">Min Rate</label>
+                        <input type="number" id="new-evt-rate" class="w-full text-sm p-2 border rounded" value="0">
                     </div>
                     <button id="btn-create-event" class="w-full bg-gray-800 text-white text-xs py-2 rounded hover:bg-black">作成 (自動進行)</button>
                 </div>
             </div>
 
-            <p class="text-xs text-gray-400 uppercase mb-2">Event List</p>
+            <p class="text-xs text-gray-400 uppercase mb-2">イベントリスト</p>
             <div id="admin-event-list" class="space-y-2 flex-1 overflow-y-auto mb-4 min-h-[200px]"></div>
             
             <div class="mt-auto pt-4 border-t border-gray-100">
@@ -321,7 +325,7 @@
                     <div class="w-px h-4 bg-gray-300"></div>
                     <div class="flex items-center space-x-2">
                         <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                        <span class="text-xs text-gray-400">Live Updating</span>
+                        <span class="text-xs text-gray-400 font-bold">Live</span>
                     </div>
                 </div>
             </div>
@@ -348,6 +352,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        // --- QUESTION BANK ---
         const QUESTION_BANK = [
             { id: 1, text: "二次方程式 $x^2 - 5x + 6 = 0$ の解を求めよ。小さい順にカンマ区切りで答えよ。", answer: ["2,3"] },
             { id: 2, text: "$n=10$ のとき、式 $n^2 + n + 1$ の値を求めよ。", answer: ["111"] },
@@ -375,13 +380,13 @@
         let currentEventId = null;
         let currentEventEndTime = 0;
         let currentQIndex = 0;
-        let userAnswers = ["", "", "", "", ""];
-        let userProgress = [false, false, false, false, false];
+        let userAnswers = [];
+        let userProgress = [];
         let isReviewMode = false;
         let adminGridSize = 'md';
         let countdownInterval = null;
         let currentQuestions = []; 
-        let autoPilotTimer = null; // Admin Timer
+        let autoPilotTimer = null;
 
         const ADMIN_NAME = "admin"; const ADMIN_PASS = "098545";
 
@@ -390,7 +395,6 @@
             waiting: document.getElementById('screen-waiting'), answer: document.getElementById('screen-answer'),
             finished: document.getElementById('screen-finished'), admin: document.getElementById('screen-admin')
         };
-        const loader = document.getElementById('loading-overlay');
 
         function showScreen(screenName) {
             Object.values(screens).forEach(el => el.classList.add('hidden-screen'));
@@ -521,13 +525,20 @@
             isReviewMode = false; currentEventId = eventId;
             const evtSnap = await get(ref(db, `events/${eventId}`));
             const evt = evtSnap.val();
-            if(evt.questionIds) currentQuestions = evt.questionIds.map(qid => QUESTION_BANK.find(q => q.id === qid)).filter(q=>q);
-            else currentQuestions = QUESTION_BANK.slice(0,5);
+            
+            if(evt.questionIds) {
+                currentQuestions = evt.questionIds.map(qid => QUESTION_BANK.find(q => q.id === qid)).filter(q=>q);
+            } else {
+                currentQuestions = QUESTION_BANK.slice(0,5); 
+            }
+
+            // Init dynamic arrays
+            userAnswers = new Array(currentQuestions.length).fill("");
+            userProgress = new Array(currentQuestions.length).fill(false);
 
             currentEventEndTime = evt.startTime + (evt.duration * 60 * 1000);
             
-            // ★ Add rate to participant data
-            await set(ref(db, `events/${eventId}/participants/${currentUser.uid}`), { name: currentUser.name, rate: currentUser.rate, joinedAt: Date.now(), progress: [false,false,false,false,false] });
+            await set(ref(db, `events/${eventId}/participants/${currentUser.uid}`), { name: currentUser.name, rate: currentUser.rate, joinedAt: Date.now(), progress: userProgress });
             showScreen('waiting');
             
             if(countdownInterval) clearInterval(countdownInterval);
@@ -540,7 +551,14 @@
 
             onValue(ref(db, `events/${eventId}/status`), (snap) => {
                 const s = snap.val();
-                if (s === "playing") { initGame(); showScreen('answer'); document.getElementById('screen-answer').classList.remove('review-mode'); document.getElementById('review-badge').classList.add('hidden'); document.getElementById('btn-back-lobby-review').classList.add('hidden'); document.getElementById('keypad-area').style.display = 'flex'; document.getElementById('answer-timer-display').classList.remove('hidden'); }
+                if (s === "playing") { 
+                    initGame(); showScreen('answer'); 
+                    document.getElementById('screen-answer').classList.remove('review-mode'); 
+                    document.getElementById('review-badge').classList.add('hidden'); 
+                    document.getElementById('btn-back-lobby-review').classList.add('hidden'); 
+                    document.getElementById('keypad-area').style.display = 'flex'; 
+                    document.getElementById('answer-timer-display').classList.remove('hidden'); 
+                }
                 if (s === "judging") { resetFinishedScreen(); showScreen('finished'); }
                 if (s === "finished") { showPersonalResult(); } 
             });
@@ -555,7 +573,11 @@
             isReviewMode = true; const evtSnap = await get(ref(db, `events/${eventId}`)); const evt = evtSnap.val();
             if(evt.questionIds) currentQuestions = evt.questionIds.map(qid => QUESTION_BANK.find(q => q.id === qid)).filter(q=>q);
             else currentQuestions = QUESTION_BANK.slice(0,5);
-            currentQIndex = 0; userAnswers = ["","","","",""]; userProgress = [false,false,false,false,false];
+            
+            currentQIndex = 0; 
+            userAnswers = new Array(currentQuestions.length).fill(""); 
+            userProgress = new Array(currentQuestions.length).fill(false);
+            
             showScreen('answer');
             document.getElementById('screen-answer').classList.add('review-mode'); document.getElementById('review-badge').classList.remove('hidden'); document.getElementById('btn-back-lobby-review').classList.remove('hidden'); document.getElementById('btn-back-lobby-review').onclick = window.backToLobby; document.getElementById('answer-timer-display').classList.add('hidden'); document.getElementById('keypad-area').style.display = 'none';
             renderQuestion(); updateNavBubbles();
@@ -563,7 +585,9 @@
 
         let answerTimer = null;
         function initGame() {
-            currentQIndex = 0; userAnswers = ["","","","",""]; userProgress = [false,false,false,false,false];
+            currentQIndex = 0; 
+            userAnswers = new Array(currentQuestions.length).fill(""); 
+            userProgress = new Array(currentQuestions.length).fill(false);
             renderQuestion(); updateNavBubbles();
             if(answerTimer) clearInterval(answerTimer);
             const display = document.getElementById('answer-timer-display');
@@ -607,7 +631,7 @@
 
         window.navQuestion = (diff) => {
             const next = currentQIndex + diff;
-            if (next >= 0 && next < 5) { 
+            if (next >= 0 && next < currentQuestions.length) { 
                 if(!isReviewMode) userAnswers[currentQIndex] = document.getElementById('answer-input').value; 
                 currentQIndex = next; renderQuestion(); updateNavBubbles(); 
             }
@@ -619,7 +643,7 @@
         };
         window.updateNavBubbles = () => {
             const c = document.getElementById('nav-bubbles'); c.innerHTML = "";
-            for(let i=0; i<5; i++) {
+            for(let i=0; i<currentQuestions.length; i++) {
                 let cls = i === currentQIndex ? "border-2 border-blue-600 text-blue-600" : "border border-gray-300 text-gray-400";
                 if(isReviewMode) cls = i === currentQIndex ? "border-2 border-gray-600 text-gray-600" : "border border-gray-300 text-gray-400";
                 let dot = userProgress[i] ? `<span class="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white bg-green-500"></span>` : "";
@@ -708,13 +732,18 @@
                 const timeStr = document.getElementById('new-evt-time').value;
                 const duration = parseInt(document.getElementById('new-evt-duration').value) || 5;
                 const rate = parseInt(document.getElementById('new-evt-rate').value) || 0;
+                
+                // ★ Get Custom Question Count
+                const qCountInput = parseInt(document.getElementById('new-evt-qcount').value) || 5;
+                const actualCount = Math.min(Math.max(qCountInput, 1), 20); // Clamp 1-20
+
                 if(!title || !timeStr) return alert("入力エラー");
                 const startTime = new Date(timeStr).getTime();
                 const eventId = "evt_" + Math.floor(Date.now() / 1000);
                 
-                // Select 5 random questions
+                // Select N random questions
                 const shuffled = [...QUESTION_BANK].sort(() => 0.5 - Math.random());
-                const selectedIds = shuffled.slice(0, 5).map(q => q.id);
+                const selectedIds = shuffled.slice(0, actualCount).map(q => q.id);
 
                 await set(ref(db, `events/${eventId}`), {
                     title: title, startTime: startTime, duration: duration, minRate: rate,
@@ -765,28 +794,14 @@
             // ★ Kick Function (Enhanced & Fixed) ★
             window.kickUser = async (uid, name) => {
                 if(!confirm(`ユーザー「${name}」を削除しますか？\n（イベントから強制退出させます）`)) return;
-                if(!confirm(`本当に削除しますか？\nこの操作は取り消せません。\n※ユーザーデータも同時に削除されます。`)) return;
-
-                // Visual removal immediately
+                if(!confirm(`本当に削除しますか？`)) return;
                 const card = document.getElementById(`grid-card-${uid}`);
                 if(card) card.remove();
-
                 const updates = {};
-                // 1. Basic deletes
                 updates[`events/${currentEventId}/participants/${uid}`] = null;
                 updates[`answers/${currentEventId}/${uid}`] = null;
                 updates[`users/${uid}`] = null;
-                
                 await update(ref(db), updates);
-
-                // 2. Ranking clean-up (If game is finished/judged)
-                const rankRef = ref(db, `events/${currentEventId}/ranking`);
-                const rankSnap = await get(rankRef);
-                if (rankSnap.exists()) {
-                    const currentRanking = rankSnap.val();
-                    const newRanking = currentRanking.filter(r => r.uid !== uid);
-                    await set(rankRef, newRanking);
-                }
             };
 
             let autoPilotTimer = null;
@@ -840,45 +855,42 @@
                             grid.innerHTML = "";
                             ranking.forEach(r => {
                                 let squares = r.results.map(res => `<div class="${s.sq} rounded-sm ${res?'bg-correct':'bg-wrong'}"></div>`).join('');
-                                // ★ ID Added for Kick Function
+                                // ★ Modified Rank Display (#1 -> 1位) and added flex-wrap for squares
                                 grid.innerHTML += `
                                 <div id="grid-card-${r.uid}" onclick="window.kickUser('${r.uid}', '${r.name}')" class="${s.card} rounded bg-white border border-gray-100 shadow-sm flex flex-col justify-between gap-2 cursor-pointer hover:bg-red-50 hover:border-red-300 transition duration-200" title="クリックして削除">
                                     <div class="font-bold text-gray-700 truncate ${s.name}">${r.name}</div>
                                     <div class="flex items-center justify-between">
-                                        <span class="text-gray-400 font-mono text-xs">#${r.rank}</span>
-                                        <div class="flex space-x-0.5">${squares}</div>
+                                        <span class="text-gray-400 font-mono text-xs">${r.rank}位</span>
+                                        <div class="flex flex-wrap gap-0.5 justify-end">${squares}</div>
                                     </div>
                                 </div>`;
                             });
                         }
                     } else if(evt.participants) {
-                        // ★ Object.entries for robust key handling
                         Object.entries(evt.participants).forEach(([uid, p]) => {
                             if(!document.getElementById(`grid-card-${uid}`)) {
-                                let squares = (p.progress||[false,false,false,false,false]).map(d => `<div class="${s.sq} rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
-                                // ★ ID Added for Kick Function
-                                let readyText = p.rate ? `R:${Math.floor(p.rate)}` : "READY";
+                                let squares = (p.progress||[]).map(d => `<div class="${s.sq} rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
+                                let readyText = p.rate ? `レート${Math.floor(p.rate)}` : "READY"; // ★ Modified Rate Display
                                 const html = `
                                 <div id="grid-card-${uid}" onclick="window.kickUser('${uid}', '${p.name}')" class="${s.card} rounded bg-white border border-gray-100 shadow-sm flex flex-col justify-between gap-2 cursor-pointer hover:bg-red-50 hover:border-red-300 transition duration-200" title="クリックして削除">
                                     <div class="font-bold text-gray-700 truncate ${s.name}">${p.name}</div>
                                     <div class="flex items-center justify-between">
                                         <span class="text-gray-400 font-mono text-xs">${readyText}</span>
-                                        <div class="flex space-x-0.5">${squares}</div>
+                                        <div class="flex flex-wrap gap-0.5 justify-end">${squares}</div>
                                     </div>
                                 </div>`;
                             }
                         });
-                        // Re-render whole grid on update to ensure sync
                         grid.innerHTML = "";
                         Object.entries(evt.participants).forEach(([uid, p]) => {
-                             let squares = (p.progress||[false,false,false,false,false]).map(d => `<div class="${s.sq} rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
-                             let readyText = p.rate ? `R:${Math.floor(p.rate)}` : "READY";
+                             let squares = (p.progress||[]).map(d => `<div class="${s.sq} rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
+                             let readyText = p.rate ? `レート${Math.floor(p.rate)}` : "READY";
                              grid.innerHTML += `
                                 <div id="grid-card-${uid}" onclick="window.kickUser('${uid}', '${p.name}')" class="${s.card} rounded bg-white border border-gray-100 shadow-sm flex flex-col justify-between gap-2 cursor-pointer hover:bg-red-50 hover:border-red-300 transition duration-200" title="クリックして削除">
                                     <div class="font-bold text-gray-700 truncate ${s.name}">${p.name}</div>
                                     <div class="flex items-center justify-between">
                                         <span class="text-gray-400 font-mono text-xs">${readyText}</span>
-                                        <div class="flex space-x-0.5">${squares}</div>
+                                        <div class="flex flex-wrap gap-0.5 justify-end">${squares}</div>
                                     </div>
                                 </div>`;
                         });
@@ -895,43 +907,41 @@
                 const answers = (await get(ref(db, `answers/${eventId}`))).val() || {};
                 const participants = (await get(ref(db, `events/${eventId}/participants`))).val() || {};
                 const allUsers = (await get(ref(db, `users`))).val() || {};
-                
-                // ★ Get event to find questions
                 const evtSnap = await get(ref(db, `events/${eventId}`));
                 const evt = evtSnap.val();
                 const judgeQuestions = (evt.questionIds||[]).map(qid => QUESTION_BANK.find(q=>q.id===qid)).filter(q=>q);
+                
+                // Use actual question count
+                const qLen = judgeQuestions.length || 5;
 
                 let userResults = [];
-                let questionStats = [0,0,0,0,0];
                 Object.keys(participants).forEach(uid => {
                     const p = participants[uid];
                     const uAnsObj = answers[uid] || {};
                     let correctCount = 0;
                     let results = [];
-                    for(let i=0; i<5; i++) {
+                    for(let i=0; i<qLen; i++) {
                         const uAns = (uAnsObj[`q${i+1}`] || "").replace(/\s+/g, '');
-                        // Check against loaded questions
                         const valids = judgeQuestions[i] ? judgeQuestions[i].answer.map(a => a.replace(/\s+/g, '')) : [];
                         const isCorrect = valids.includes(uAns);
                         results.push(isCorrect);
-                        if(isCorrect) { correctCount++; questionStats[i]++; }
+                        if(isCorrect) correctCount++;
                     }
                     userResults.push({ uid, name: p.name, results, correctCount });
                 });
-                const total = userResults.length || 1;
-                const BVs = questionStats.map(c => 100 - Math.floor((c/total)*100));
+                
                 userResults = userResults.map(u => {
-                    let score = 0;
-                    u.results.forEach((ok, i) => { if(ok) score += (BVs[i] + 50); });
+                    let score = u.correctCount * 100;
                     u.score = score;
                     const curRate = (allUsers[u.uid] && allUsers[u.uid].rate) || 1000;
-                    const diff = Math.floor(score * 0.1) + (u.correctCount * 10);
+                    const diff = Math.floor(score * 0.1);
                     u.newRate = curRate + diff;
                     u.rateDiff = diff;
                     return u;
                 });
                 userResults.sort((a,b) => b.score - a.score);
                 userResults.forEach((u,i) => u.rank = i+1);
+                
                 await set(ref(db, `events/${eventId}/ranking`), userResults);
                 setTimeout(() => { startReveal(eventId); }, 10000);
             }
