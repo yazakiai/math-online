@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>数学オンライン（仮）</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -58,9 +58,12 @@
             color: #374151;
             overflow: hidden;
         }
+        
+        /* Safe Area for Mobile */
+        .safe-pt { padding-top: env(safe-area-inset-top); }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800 h-screen w-screen overflow-hidden">
+<body class="bg-gray-100 text-gray-800 h-screen w-screen overflow-hidden safe-pt">
 
     <div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex items-center justify-center hidden-screen">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -69,7 +72,7 @@
     <section id="screen-login" class="h-full flex flex-col justify-center items-center p-6">
         <div class="bg-white p-10 rounded-2xl shadow-sm max-w-md w-full border border-gray-100">
             <h1 class="text-3xl font-bold text-center mb-2 tracking-tight">数学オンライン（仮）</h1>
-            <p class="text-gray-400 text-center mb-8 text-sm">Mathematics Competitive Platform</p>
+            <p class="text-gray-400 text-center mb-8 text-sm">ようこそ</p>
             
             <div class="space-y-4">
                 <div>
@@ -81,17 +84,17 @@
                     <input type="password" id="input-passcode" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="4桁以上の数字">
                 </div>
                 <button id="btn-login" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-lg transition transform active:scale-95 shadow-lg mt-4">
-                    LOGIN
+                    ログイン
                 </button>
             </div>
-            <div class="mt-6 text-center text-xs text-gray-300">
-                管理者: admin / 098545
+            <div class="mt-6 text-center text-[10px] text-gray-400">
+                ※不適切な名前や、他者を不快にする表現は禁止です
             </div>
         </div>
     </section>
 
-    <section id="screen-lobby" class="hidden-screen h-full flex flex-col p-6 max-w-5xl mx-auto">
-        <header class="flex justify-between items-center mb-6">
+    <section id="screen-lobby" class="hidden-screen h-full flex flex-col p-6 max-w-5xl mx-auto pt-8">
+        <header class="flex justify-between items-center mb-6 pt-4">
             <div>
                 <h2 class="text-2xl font-bold" id="lobby-username">Loading...</h2>
                 <div class="flex items-center space-x-2 text-sm text-gray-500">
@@ -127,13 +130,13 @@
             <div class="text-8xl font-mono font-bold mb-8 tracking-tighter text-gray-900" id="countdown">--:--</div>
             <p class="text-gray-400 text-sm animate-pulse">開始までお待ちください</p>
         </div>
-        <button onclick="backToLobby()" class="absolute bottom-10 text-xs text-gray-300 hover:text-gray-500 transition">
-            ロビーへ戻る
+        <button onclick="leaveEventAndBack()" class="absolute bottom-10 text-xs text-gray-400 hover:text-red-500 transition font-bold border border-gray-200 px-4 py-2 rounded-full">
+            待機をキャンセルして戻る
         </button>
     </section>
 
     <section id="screen-answer" class="hidden-screen h-full flex flex-col bg-gray-50">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm z-20">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm z-20 pt-8">
             <div class="flex items-center space-x-4">
                 <span class="bg-gray-900 text-white px-3 py-1 rounded text-sm font-bold tracking-wider">Q.<span id="display-q-num">1</span></span>
                 <span class="text-xs font-mono text-red-500 font-bold" id="answer-timer-display">--:--</span>
@@ -185,7 +188,7 @@
     </section>
 
     <section id="screen-finished" class="hidden-screen h-full flex flex-col bg-gray-50 overflow-y-auto">
-        <div class="w-full max-w-2xl mx-auto p-6 my-10 bg-white rounded-xl shadow-sm">
+        <div class="w-full max-w-2xl mx-auto p-6 my-10 bg-white rounded-xl shadow-sm pt-8">
             <div class="text-center border-b border-gray-100 pb-6 mb-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">対戦終了</h2>
                 <div class="flex justify-center my-4">
@@ -323,6 +326,7 @@
         let userProgress = [false, false, false, false, false];
         let isReviewMode = false;
         let adminGridSize = 'md';
+        let countdownInterval = null;
 
         const ADMIN_NAME = "admin"; const ADMIN_PASS = "098545";
 
@@ -524,19 +528,36 @@
         }
 
         window.joinEvent = async (eventId) => {
+            // ★ Cancel previous if exists
+            if(currentEventId && currentEventId !== eventId) {
+                await remove(ref(db, `events/${currentEventId}/participants/${currentUser.uid}`));
+            }
+
             isReviewMode = false;
             currentEventId = eventId;
             const evtSnap = await get(ref(db, `events/${eventId}`));
             const evt = evtSnap.val();
             currentEventEndTime = evt.startTime + (evt.duration * 60 * 1000);
+            
             await set(ref(db, `events/${eventId}/participants/${currentUser.uid}`), { name: currentUser.name, joinedAt: Date.now(), progress: [false,false,false,false,false] });
             showScreen('waiting');
+            
+            if(countdownInterval) clearInterval(countdownInterval);
             const timerEl = document.getElementById('countdown');
-            const interval = setInterval(() => {
+            
+            countdownInterval = setInterval(() => {
                 const diff = evt.startTime - Date.now();
-                if(diff <= 0) { timerEl.innerText = "00:00"; clearInterval(interval); } 
-                else { const m = Math.floor(diff / 60000); const s = Math.floor((diff % 60000) / 1000); timerEl.innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+                if(diff <= 0) { 
+                    timerEl.innerText = "00:00"; 
+                    clearInterval(countdownInterval); 
+                } 
+                else { 
+                    const m = Math.floor(diff / 60000); 
+                    const s = Math.floor((diff % 60000) / 1000); 
+                    timerEl.innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; 
+                }
             }, 1000);
+
             onValue(ref(db, `events/${eventId}/status`), (snap) => {
                 const s = snap.val();
                 if (s === "playing") { 
@@ -550,6 +571,16 @@
                 if (s === "judging") { resetFinishedScreen(); showScreen('finished'); }
                 if (s === "finished") { showPersonalResult(); } 
             });
+        };
+
+        // ★ New Function: Leave Event
+        window.leaveEventAndBack = async () => {
+            if(currentEventId) {
+                if(countdownInterval) clearInterval(countdownInterval);
+                await remove(ref(db, `events/${currentEventId}/participants/${currentUser.uid}`));
+                currentEventId = null;
+            }
+            backToLobby();
         };
 
         window.viewArchive = (eventId) => {
@@ -747,7 +778,7 @@
                 if(currentEventId) window.selectAdminEvent(currentEventId);
             }
 
-            // ★ Kick Function (Enhanced & Fixed) ★
+            // ★ Kick Function
             window.kickUser = async (uid, name) => {
                 if(!confirm(`ユーザー「${name}」を削除しますか？\n（イベントから強制退出させます）`)) return;
                 if(!confirm(`本当に削除しますか？\nこの操作は取り消せません。\n※ユーザーデータも同時に削除されます。`)) return;
@@ -757,14 +788,12 @@
                 if(card) card.remove();
 
                 const updates = {};
-                // 1. Basic deletes
                 updates[`events/${currentEventId}/participants/${uid}`] = null;
                 updates[`answers/${currentEventId}/${uid}`] = null;
                 updates[`users/${uid}`] = null;
                 
                 await update(ref(db), updates);
 
-                // 2. Ranking clean-up (If game is finished/judged)
                 const rankRef = ref(db, `events/${currentEventId}/ranking`);
                 const rankSnap = await get(rankRef);
                 if (rankSnap.exists()) {
@@ -825,7 +854,6 @@
                             grid.innerHTML = "";
                             ranking.forEach(r => {
                                 let squares = r.results.map(res => `<div class="${s.sq} rounded-sm ${res?'bg-correct':'bg-wrong'}"></div>`).join('');
-                                // ★ ID Added for Kick Function
                                 grid.innerHTML += `
                                 <div id="grid-card-${r.uid}" onclick="window.kickUser('${r.uid}', '${r.name}')" class="${s.card} rounded bg-white border border-gray-100 shadow-sm flex flex-col justify-between gap-2 cursor-pointer hover:bg-red-50 hover:border-red-300 transition duration-200" title="クリックして削除">
                                     <div class="font-bold text-gray-700 truncate ${s.name}">${r.name}</div>
@@ -837,11 +865,9 @@
                             });
                         }
                     } else if(evt.participants) {
-                        // ★ Object.entries for robust key handling
                         Object.entries(evt.participants).forEach(([uid, p]) => {
                             if(!document.getElementById(`grid-card-${uid}`)) {
                                 let squares = (p.progress||[false,false,false,false,false]).map(d => `<div class="${s.sq} rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
-                                // ★ ID Added for Kick Function
                                 const html = `
                                 <div id="grid-card-${uid}" onclick="window.kickUser('${uid}', '${p.name}')" class="${s.card} rounded bg-white border border-gray-100 shadow-sm flex flex-col justify-between gap-2 cursor-pointer hover:bg-red-50 hover:border-red-300 transition duration-200" title="クリックして削除">
                                     <div class="font-bold text-gray-700 truncate ${s.name}">${p.name}</div>
@@ -852,7 +878,6 @@
                                 </div>`;
                             }
                         });
-                        // Re-render whole grid on update to ensure sync
                         grid.innerHTML = "";
                         Object.entries(evt.participants).forEach(([uid, p]) => {
                              let squares = (p.progress||[false,false,false,false,false]).map(d => `<div class="${s.sq} rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
@@ -927,6 +952,7 @@
                 const interval = setInterval(() => {
                     if(i < 0) { clearInterval(interval); update(ref(db, `events/${eventId}`), {status:'finished'}); return; }
                     const user = ranking[i];
+                    /* Animation simplified */
                     i--;
                 }, 1200);
             }
