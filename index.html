@@ -247,6 +247,11 @@
     <section id="screen-finished" class="hidden-screen h-full flex flex-col bg-gray-50 overflow-y-auto">
         <div class="w-full max-w-2xl mx-auto p-6 my-10 bg-white rounded-xl shadow-sm mt-20">
             <div class="text-center border-b border-gray-100 pb-6 mb-6">
+                <div id="finished-waiting-header" class="hidden mb-4">
+                     <span class="text-xs font-bold text-gray-400 block mb-1">競技終了まで</span>
+                     <span id="finish-wait-timer" class="text-4xl font-mono font-bold text-gray-800 tracking-tight">--:--</span>
+                </div>
+                
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">対戦終了</h2>
                 <div class="flex justify-center my-4">
                     <div class="animate-pulse bg-blue-100 text-blue-600 px-4 py-1 rounded-full text-sm font-bold" id="user-status-msg">
@@ -451,18 +456,28 @@
             { id: 70, text: "$\\vec{a}=(1,2), \\vec{b}=(3,1)$ のとき、$\\vec{a} \\cdot \\vec{b}$（内積）の値を求めよ。", answer: ["5"] }
         ];
 
-        // --- BOT MASTER CONFIG (Name, Accuracy, FinishTime(sec)) ---
+        // --- BOT MASTER CONFIG (20 Bots) ---
         const BOT_MASTERS = [
-            // { name: "ガウス", accuracy: 1.0, finishTime: 100 }, // REMOVED (Too fast)
-            { name: "神", accuracy: 1.0, finishTime: 120 }, // ~2m
-            { name: "バナナ", accuracy: 0.5, finishTime: 110 }, // Fast but wrong
+            { name: "神", accuracy: 1.0, finishTime: 120 },
+            { name: "バナナ", accuracy: 0.5, finishTime: 110 },
             { name: "むきむきこあら", accuracy: 0.8, finishTime: 160 }, 
-            { name: "かわいいだけじゃだめです", accuracy: 0.9, finishTime: 180 }, // 3m
+            { name: "かわいいだけじゃだめです", accuracy: 0.9, finishTime: 180 },
             { name: "ジャイアントコーン", accuracy: 0.8, finishTime: 200 }, 
             { name: "りんご大福", accuracy: 0.8, finishTime: 220 }, 
-            { name: "思考", accuracy: 0.95, finishTime: 240 }, // 4m
-            { name: "おもち", accuracy: 0.6, finishTime: 280 }, // 4.5m
-            { name: "あ", accuracy: 0.4, finishTime: 290 } // 4.5m+
+            { name: "思考", accuracy: 0.95, finishTime: 240 },
+            { name: "おもち", accuracy: 0.6, finishTime: 280 },
+            { name: "あ", accuracy: 0.4, finishTime: 290 },
+            { name: "Euler_Jr", accuracy: 0.98, finishTime: 140 },
+            { name: "猫が好き", accuracy: 0.7, finishTime: 210 },
+            { name: "Sevenstars", accuracy: 0.85, finishTime: 190 },
+            { name: "田中太郎", accuracy: 0.6, finishTime: 250 },
+            { name: "MathWiz", accuracy: 0.9, finishTime: 150 },
+            { name: "CoffeeBreak", accuracy: 0.75, finishTime: 230 },
+            { name: "X", accuracy: 1.0, finishTime: 130 },
+            { name: "焼肉定食", accuracy: 0.65, finishTime: 260 },
+            { name: "Algorithm", accuracy: 0.92, finishTime: 170 },
+            { name: "Pythagoras", accuracy: 0.95, finishTime: 145 },
+            { name: "NoName", accuracy: 0.3, finishTime: 300 }
         ];
 
         let currentUser = null;
@@ -474,6 +489,7 @@
         let isReviewMode = false;
         let adminGridSize = 'md';
         let countdownInterval = null;
+        let finishWaitTimer = null;
         let currentQuestions = []; 
         let autoPilotTimer = null;
 
@@ -634,14 +650,15 @@
             await set(ref(db, `events/${eventId}/participants/${currentUser.uid}`), { name: currentUser.name, rate: currentUser.rate, joinedAt: Date.now(), progress: userProgress });
             showScreen('waiting');
             
-            // Render Participant List in Waiting Screen (Live)
+            // Render Participant List in Waiting Screen (Live) - SORTED
             onValue(ref(db, `events/${eventId}/participants`), (snap) => {
                 const listEl = document.getElementById('waiting-participant-list');
                 listEl.innerHTML = "";
                 if(snap.exists()) {
                     const parts = snap.val();
-                    Object.values(parts).forEach(p => {
-                        const rateDisplay = p.rate ? `R.${Math.floor(p.rate)}` : "-";
+                    const sortedParts = Object.values(parts).sort((a,b) => (b.rate||1000) - (a.rate||1000));
+                    sortedParts.forEach(p => {
+                        const rateDisplay = p.rate ? `レート${Math.floor(p.rate)}` : "-";
                         listEl.innerHTML += `
                         <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex justify-between items-center animate-fade-in">
                             <span class="font-bold text-gray-700 truncate w-32">${p.name}</span>
@@ -684,8 +701,8 @@
                          let squares = (p.progress||[]).map(d => `<div class="w-2.5 h-2.5 rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
                          finishList.innerHTML += `
                          <div class="bg-white p-2 rounded border border-gray-100 flex justify-between items-center">
-                             <span class="text-xs font-bold text-gray-700 truncate w-24">${p.name}</span>
-                             <div class="flex gap-0.5">${squares}</div>
+                             <span class="text-xs font-bold text-gray-700 truncate flex-1 mr-2">${p.name}</span>
+                             <div class="flex gap-0.5 flex-shrink-0">${squares}</div>
                          </div>`;
                      });
                      finishListContainer.classList.remove('hidden');
@@ -798,14 +815,27 @@
             document.getElementById('user-status-msg').innerText = "集計中";
             document.getElementById('user-status-msg').className = "animate-pulse bg-blue-100 text-blue-600 px-4 py-1 rounded-full text-sm font-bold";
             document.getElementById('personal-result-area').classList.add('hidden');
-            document.getElementById('finished-participant-list-container').classList.remove('hidden'); // Show progress list
+            document.getElementById('finished-waiting-header').classList.remove('hidden'); // Show header with timer
+            document.getElementById('finished-participant-list-container').classList.remove('hidden'); 
+
+            // Start Waiting Timer
+            if(finishWaitTimer) clearInterval(finishWaitTimer);
+            const tEl = document.getElementById('finish-wait-timer');
+            finishWaitTimer = setInterval(() => {
+                const left = currentEventEndTime - Date.now();
+                if(left <= 0) { tEl.innerText = "00:00"; clearInterval(finishWaitTimer); }
+                else { const m = Math.floor(left/60000); const s = Math.floor((left%60000)/1000); tEl.innerText = `${m}:${String(s).padStart(2,'0')}`; }
+            }, 1000);
         }
 
         async function showPersonalResult() {
             showScreen('finished');
             document.getElementById('user-status-msg').innerText = "結果発表 / Results Released";
             document.getElementById('user-status-msg').className = "bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold";
-            document.getElementById('finished-participant-list-container').classList.add('hidden'); // Hide progress list on result
+            document.getElementById('finished-participant-list-container').classList.add('hidden'); 
+            document.getElementById('finished-waiting-header').classList.add('hidden'); // Hide timer
+            if(finishWaitTimer) clearInterval(finishWaitTimer);
+
             const area = document.getElementById('personal-result-area');
             const list = document.getElementById('answer-review-list');
             
@@ -884,10 +914,43 @@
                     questionIds: selectedIds 
                 });
                 
-                // ★ STAGGERED BOT ENTRY
-                const delays = [7000, 17000, 24000, 34000, 41000];
-                const shuffledBots = [...BOT_MASTERS].sort(() => 0.5 - Math.random()).slice(0, 5);
-                shuffledBots.forEach((bot, index) => {
+                // ★ NEW BOT LOGIC
+                // 1. Determine number of bots (1-5)
+                const numBots = Math.floor(Math.random() * 5) + 1;
+
+                // 2. Check currently active events to exclude busy bots
+                const eventsSnap = await get(ref(db, 'events'));
+                const activeBotNames = new Set();
+                if (eventsSnap.exists()) {
+                    Object.values(eventsSnap.val()).forEach(evt => {
+                        if (evt.status !== 'finished' && evt.participants) {
+                            Object.values(evt.participants).forEach(p => {
+                                if (p.isBot) activeBotNames.add(p.name);
+                            });
+                        }
+                    });
+                }
+
+                // 3. Filter available bots
+                const availableBots = BOT_MASTERS.filter(b => !activeBotNames.has(b.name));
+                // Fallback if too many busy: just pick from all (or reduce count)
+                const pool = availableBots.length >= numBots ? availableBots : BOT_MASTERS;
+                
+                const selectedBots = [...pool].sort(() => 0.5 - Math.random()).slice(0, numBots);
+
+                // 4. Calculate timing (Scatter within last 3 mins or now->start)
+                const now = Date.now();
+                const threeMinBefore = startTime - (3 * 60 * 1000);
+                // Earliest entry is either 3 mins before start, or now (if created late)
+                const entryStartWindow = Math.max(now, threeMinBefore);
+                const windowDuration = Math.max(0, startTime - entryStartWindow);
+
+                selectedBots.forEach((bot) => {
+                    // Random delay within the allowed window
+                    const randomDelay = Math.random() * windowDuration;
+                    const joinTime = entryStartWindow + randomDelay;
+                    const delayFromNow = Math.max(0, joinTime - now);
+
                     setTimeout(async () => {
                         const botId = "bot_" + bot.name;
                         // Ensure bot exists in users
@@ -897,7 +960,7 @@
                         if(!botSnap.exists()) await set(botUserRef, { uid: botId, name: bot.name, rate: 1000 });
                         // Add to participants
                         await update(ref(db, `events/${eventId}/participants/${botId}`), { name: bot.name, rate: currentBotRate, isBot: true, accuracy: bot.accuracy, finishTime: bot.finishTime, progress: new Array(selectedIds.length).fill(false) });
-                    }, delays[index]); 
+                    }, delayFromNow); 
                 });
 
                 alert("作成完了。");
