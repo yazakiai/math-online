@@ -17,9 +17,8 @@
         body { font-family: 'M PLUS Rounded 1c', sans-serif; touch-action: manipulation; }
         .hidden-screen { display: none !important; }
         
-        /* Hide scrollbar for Chrome, Safari and Opera */
+        /* Hide scrollbar */
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        /* Hide scrollbar for IE, Edge and Firefox */
         .no-scrollbar { -ms-overflow-style: none;  scrollbar-width: none; }
         
         ::-webkit-scrollbar { width: 6px; }
@@ -359,7 +358,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- QUESTION BANK ---
+        // --- QUESTION BANK (70 Questions) ---
         const QUESTION_BANK = [
             { id: 1, text: "二次方程式 $x^2 - 5x + 6 = 0$ の解を求めよ。小さい順にカンマ区切りで答えよ。", answer: ["2,3"] },
             { id: 2, text: "$n=10$ のとき、式 $n^2 + n + 1$ の値を求めよ。", answer: ["111"] },
@@ -370,17 +369,67 @@
             { id: 7, text: "三角形の3辺の長さが $3, 4, 5$ のとき、その面積を求めよ。", answer: ["6"] },
             { id: 8, text: "$\\int_{0}^{2} 3x^2 dx$ を計算せよ。", answer: ["8"] },
             { id: 9, text: "2個のサイコロを同時に投げるとき、和が7になる組み合わせは何通りあるか。", answer: ["6"] },
-            { id: 10, text: "連立方程式 $2x+y=7, x-y=2$ の解 $(x,y)$ について、$x+y$ の値を求めよ。", answer: ["4"] }, 
+            { id: 10, text: "連立方程式 $2x+y=7, x-y=2$ の解 $(x,y)$ について、$x+y$ の値を求めよ。", answer: ["4"] },
             { id: 11, text: "$x^2-6x+k=0$ が重解を持つとき、定数 $k$ の値を求めよ。", answer: ["9"] },
             { id: 12, text: "$\\sin 30^\\circ + \\cos 60^\\circ$ の値を求めよ。", answer: ["1"] },
             { id: 13, text: "$100$ の約数の個数を求めよ。", answer: ["9"] },
             { id: 14, text: "初項2、公比3の等比数列の第4項を求めよ。", answer: ["54"] },
-            { id: 15, text: "円 $x^2 + y^2 = 25$ 上の点 $(3,4)$ における接線の傾きは $-a/b$ となる。$a+b$ の値を求めよ（$a,b$は互いに素な自然数）。", answer: ["7"] }, // Modified
+            { id: 15, text: "円 $x^2 + y^2 = 25$ 上の点 $(3,4)$ における接線の傾きは $-a/b$ となる。$a+b$ の値を求めよ（$a,b$は互いに素な自然数）。", answer: ["7"] },
             { id: 16, text: "$\\sum_{k=1}^{10} k$ の値を求めよ。", answer: ["55"] },
             { id: 17, text: "2進数 $1011$ を10進数に直せ。", answer: ["11"] },
             { id: 18, text: "男子3人、女子2人が一列に並ぶとき、女子2人が隣り合う並び方は何通りか。", answer: ["48"] },
             { id: 19, text: "$|x-3|=5$ を満たす正の数 $x$ を求めよ。", answer: ["8"] },
-            { id: 20, text: "$f(x)=x^3-3x^2+5$ のとき、$f'(2)$ の値を求めよ。", answer: ["0"] }
+            { id: 20, text: "$f(x)=x^3-3x^2+5$ のとき、$f'(2)$ の値を求めよ。", answer: ["0"] },
+            { id: 21, text: "$12$ と $18$ の最大公約数を求めよ。", answer: ["6"] },
+            { id: 22, text: "$12$ と $18$ の最小公倍数を求めよ。", answer: ["36"] },
+            { id: 23, text: "$\\sqrt{12} + \\sqrt{27} = a\\sqrt{3}$ となるとき、$a$ の値を求めよ。", answer: ["5"] },
+            { id: 24, text: "関数 $y=2x+3$ のグラフの傾きを求めよ。", answer: ["2"] },
+            { id: 25, text: "関数 $y=-3x^2$ について、$x$ が $1$ から $3$ まで増加するときの変化の割合を求めよ。", answer: ["-12"] },
+            { id: 26, text: "半径 $5$ の円の面積は $a\\pi$ である。$a$ の値を求めよ。", answer: ["25"] },
+            { id: 27, text: "$7\\text{C}_2$ の値を求めよ。", answer: ["21"] },
+            { id: 28, text: "$5!$ の値を求めよ。", answer: ["120"] },
+            { id: 29, text: "$2^{10}$ の値を求めよ。", answer: ["1024"] },
+            { id: 30, text: "$\\sin^2 \\theta + \\cos^2 \\theta$ の値を求めよ。", answer: ["1"] },
+            { id: 31, text: "三角形の内角の和は何度か。", answer: ["180"] },
+            { id: 32, text: "$x^2-9=0$ の解のうち、正のものを求めよ。", answer: ["3"] },
+            { id: 33, text: "$1$ から $100$ までの整数のうち、$5$ の倍数は何個あるか。", answer: ["20"] },
+            { id: 34, text: "サイコロを1回投げて、偶数の目が出る確率は $1/a$ である。$a$ の値を求めよ。", answer: ["2"] },
+            { id: 35, text: "データ $3, 5, 7, 9, 11$ の平均値を求めよ。", answer: ["7"] },
+            { id: 36, text: "$x^2 + 6x + 9 = 0$ の解を求めよ。", answer: ["-3"] },
+            { id: 37, text: "$\\sqrt{49}$ の値を求めよ。", answer: ["7"] },
+            { id: 38, text: "$|-10| + |3|$ の値を求めよ。", answer: ["13"] },
+            { id: 39, text: "一次関数 $y=2x-5$ において、$x=4$ のときの $y$ の値を求めよ。", answer: ["3"] },
+            { id: 40, text: "底辺が $6$、高さが $5$ の三角形の面積を求めよ。", answer: ["15"] },
+            { id: 41, text: "$\\log_{10} 1000$ の値を求めよ。", answer: ["3"] },
+            { id: 42, text: "$3^4$ の値を求めよ。", answer: ["81"] },
+            { id: 43, text: "$\\sum_{k=1}^{5} k^2$ の値を求めよ。", answer: ["55"] },
+            { id: 44, text: "$x+2y=8, 2x-y=6$ の解 $(x,y)$ について $x$ の値を求めよ。", answer: ["4"] },
+            { id: 45, text: "二次関数 $y=(x-2)^2+1$ の最小値を求めよ。", answer: ["1"] },
+            { id: 46, text: "$81$ の平方根のうち、負のものを求めよ。", answer: ["-9"] },
+            { id: 47, text: "正六角形の1つの内角の大きさは何度か。", answer: ["120"] },
+            { id: 48, text: "$30, 45, 60$ の最大公約数を求めよ。", answer: ["15"] },
+            { id: 49, text: "コインを3回投げて、少なくとも1回表が出る確率は $a/8$ である。$a$ の値を求めよ。", answer: ["7"] },
+            { id: 50, text: "$\\tan 45^\\circ$ の値を求めよ。", answer: ["1"] },
+            { id: 51, text: "等差数列 $2, 5, 8, ...$ の公差を求めよ。", answer: ["3"] },
+            { id: 52, text: "等比数列 $1, 2, 4, 8, ...$ の第 $8$ 項を求めよ。", answer: ["128"] },
+            { id: 53, text: "$y=x^2$ と $y=x+2$ の交点の $x$ 座標の和を求めよ。", answer: ["1"] },
+            { id: 54, text: "$x^2-x-12$ を因数分解したとき、$(x-a)(x+b)$ となる。$a,b$ が自然数のとき、$a+b$ の値を求めよ。", answer: ["7"] },
+            { id: 55, text: "$\\int_{0}^{3} 2x dx$ の値を求めよ。", answer: ["9"] },
+            { id: 56, text: "$\\lim_{n \\to \\infty} \\frac{2n+1}{n}$ の値を求めよ。", answer: ["2"] },
+            { id: 57, text: "$2^{x} = 64$ を満たす $x$ の値を求めよ。", answer: ["6"] },
+            { id: 58, text: "$\\sqrt{2}$ の近似値を小数第1位まで求め、$10$ 倍した整数値を答えよ。（例：1.4なら14）", answer: ["14"] },
+            { id: 59, text: "三角形の重心は、中線を $a:b$ に内分する。$a+b$ の値を求めよ。（最も簡単な整数比で）", answer: ["3"] },
+            { id: 60, text: "$10$ 円硬貨 $3$ 枚と $100$ 円硬貨 $2$ 枚がある。合計金額は何通りあるか（0円は除く）。", answer: ["11"] },
+            { id: 61, text: "$x^2+ax+b=0$ の解が $2, 3$ のとき、$a+b$ の値を求めよ。", answer: ["1"] },
+            { id: 62, text: "半径 $r$ の球の体積は $\\frac{4}{3}\\pi r^3$ である。$r=3$ のときの体積を $V=a\\pi$ とするとき、$a$ の値を求めよ。", answer: ["36"] },
+            { id: 63, text: "$y = \\sin x$ の周期は $a\\pi$ である。$a$ の値を求めよ。", answer: ["2"] },
+            { id: 64, text: "$\\log_3 9 + \\log_3 27$ の値を求めよ。", answer: ["5"] },
+            { id: 65, text: "階乗 $0!$ の値を求めよ。", answer: ["1"] },
+            { id: 66, text: "正四面体の頂点の数を求めよ。", answer: ["4"] },
+            { id: 67, text: "$y=x^2$ を $x$ 軸方向に $2$、$y$ 軸方向に $3$ 平行移動したグラフの頂点の $y$ 座標を求めよ。", answer: ["3"] },
+            { id: 68, text: "$1$ から $10$ までの整数の和を求めよ。", answer: ["55"] },
+            { id: 69, text: "サイコロを2回投げて、ゾロ目が出る確率は $1/a$ である。$a$ の値を求めよ。", answer: ["6"] },
+            { id: 70, text: "$\\vec{a}=(1,2), \\vec{b}=(3,1)$ のとき、$\\vec{a} \\cdot \\vec{b}$（内積）の値を求めよ。", answer: ["5"] }
         ];
 
         let currentUser = null;
@@ -543,6 +592,7 @@
                 currentQuestions = QUESTION_BANK.slice(0,5); 
             }
 
+            // Init dynamic arrays
             userAnswers = new Array(currentQuestions.length).fill("");
             userProgress = new Array(currentQuestions.length).fill(false);
 
