@@ -457,27 +457,28 @@
         ];
 
         // --- BOT MASTER CONFIG (20 Bots) ---
+        // Added skipChance for simulation
         const BOT_MASTERS = [
-            { name: "神", accuracy: 1.0, finishTime: 120 },
-            { name: "バナナ", accuracy: 0.5, finishTime: 110 },
-            { name: "むきむきこあら", accuracy: 0.8, finishTime: 160 }, 
-            { name: "かわいいだけじゃだめです", accuracy: 0.9, finishTime: 180 },
-            { name: "ジャイアントコーン", accuracy: 0.8, finishTime: 200 }, 
-            { name: "りんご大福", accuracy: 0.8, finishTime: 220 }, 
-            { name: "思考", accuracy: 0.95, finishTime: 240 },
-            { name: "おもち", accuracy: 0.6, finishTime: 280 },
-            { name: "あ", accuracy: 0.4, finishTime: 290 },
-            { name: "Euler_Jr", accuracy: 0.98, finishTime: 140 },
-            { name: "猫が好き", accuracy: 0.7, finishTime: 210 },
-            { name: "Sevenstars", accuracy: 0.85, finishTime: 190 },
-            { name: "田中太郎", accuracy: 0.6, finishTime: 250 },
-            { name: "MathWiz", accuracy: 0.9, finishTime: 150 },
-            { name: "CoffeeBreak", accuracy: 0.75, finishTime: 230 },
-            { name: "X", accuracy: 1.0, finishTime: 130 },
-            { name: "焼肉定食", accuracy: 0.65, finishTime: 260 },
-            { name: "Algorithm", accuracy: 0.92, finishTime: 170 },
-            { name: "Pythagoras", accuracy: 0.95, finishTime: 145 },
-            { name: "NoName", accuracy: 0.3, finishTime: 300 }
+            { name: "神", accuracy: 1.0, finishTime: 120, skipChance: 0 },
+            { name: "バナナ", accuracy: 0.5, finishTime: 110, skipChance: 0.3 },
+            { name: "むきむきこあら", accuracy: 0.8, finishTime: 160, skipChance: 0.1 }, 
+            { name: "かわいいだけじゃだめです", accuracy: 0.9, finishTime: 180, skipChance: 0.05 },
+            { name: "ジャイアントコーン", accuracy: 0.8, finishTime: 200, skipChance: 0.1 }, 
+            { name: "りんご大福", accuracy: 0.8, finishTime: 220, skipChance: 0.2 }, 
+            { name: "思考", accuracy: 0.95, finishTime: 240, skipChance: 0 },
+            { name: "おもち", accuracy: 0.6, finishTime: 280, skipChance: 0.25 },
+            { name: "あ", accuracy: 0.4, finishTime: 290, skipChance: 0.4 },
+            { name: "Euler_Jr", accuracy: 0.98, finishTime: 140, skipChance: 0 },
+            { name: "猫が好き", accuracy: 0.7, finishTime: 210, skipChance: 0.15 },
+            { name: "Sevenstars", accuracy: 0.85, finishTime: 190, skipChance: 0.05 },
+            { name: "田中太郎", accuracy: 0.6, finishTime: 250, skipChance: 0.2 },
+            { name: "MathWiz", accuracy: 0.9, finishTime: 150, skipChance: 0.02 },
+            { name: "CoffeeBreak", accuracy: 0.75, finishTime: 230, skipChance: 0.1 },
+            { name: "X", accuracy: 1.0, finishTime: 130, skipChance: 0 },
+            { name: "焼肉定食", accuracy: 0.65, finishTime: 260, skipChance: 0.2 },
+            { name: "Algorithm", accuracy: 0.92, finishTime: 170, skipChance: 0.05 },
+            { name: "Pythagoras", accuracy: 0.95, finishTime: 145, skipChance: 0.01 },
+            { name: "NoName", accuracy: 0.3, finishTime: 300, skipChance: 0.5 }
         ];
 
         let currentUser = null;
@@ -740,7 +741,7 @@
             answerTimer = setInterval(() => {
                 const left = currentEventEndTime - Date.now();
                 if(left <= 0) { display.innerText = "00:00"; clearInterval(answerTimer); } 
-                else { const m = Math.floor(left/60000); const s = Math.floor((left%60000)/1000); display.innerText = `${m}:${String(s).padStart(2,'0')}`; }
+                else { const m = Math.floor(left/60000); const s = Math.floor((left%60000)/1000); display.innerText = `${m}:${String(s).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
             }, 1000);
         }
 
@@ -824,7 +825,7 @@
             finishWaitTimer = setInterval(() => {
                 const left = currentEventEndTime - Date.now();
                 if(left <= 0) { tEl.innerText = "00:00"; clearInterval(finishWaitTimer); }
-                else { const m = Math.floor(left/60000); const s = Math.floor((left%60000)/1000); tEl.innerText = `${m}:${String(s).padStart(2,'0')}`; }
+                else { const m = Math.floor(left/60000); const s = Math.floor((left%60000)/1000); tEl.innerText = `${m}:${String(s).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
             }, 1000);
         }
 
@@ -1131,6 +1132,14 @@
                 // ★ Speed Constraint: 3s check (Saved in Firebase per bot participant)
                 if (bot.lastAnswerTime && (Date.now() - bot.lastAnswerTime < 3000)) return;
                 
+                // ★ Skip Logic: Check if bot decides to skip this question based on its property
+                if (Math.random() < (bot.skipChance || 0)) {
+                     bot.progress[nextQIndex] = true; // Mark as done (skipped)
+                     await update(ref(db, `events/${eventId}/participants/${botId}`), { progress: bot.progress, lastAnswerTime: Date.now() });
+                     await set(ref(db, `answers/${eventId}/${botId}/q${nextQIndex+1}`), ""); // Submit empty answer
+                     return;
+                }
+
                 // Calculate random chance based on target finish time
                 // Tick is 1s approx (in loop). Probability P = 1 / (TimePerQ)
                 const timePerQuestion = bot.finishTime / questionIds.length;
@@ -1192,8 +1201,17 @@
                 });
                 if(Object.keys(updates).length > 0) await update(ref(db), updates);
 
+                // Sort by score
                 userResults.sort((a,b) => b.score - a.score);
-                userResults.forEach((u,i) => u.rank = i+1);
+
+                // ★ Ranking Logic (Handle ties: 1, 1, 3...)
+                let currentRank = 1;
+                for (let i = 0; i < userResults.length; i++) {
+                    if (i > 0 && userResults[i].score < userResults[i-1].score) {
+                        currentRank = i + 1;
+                    }
+                    userResults[i].rank = currentRank;
+                }
                 
                 await set(ref(db, `events/${eventId}/ranking`), userResults);
                 setTimeout(() => { startReveal(eventId); }, 10000);
