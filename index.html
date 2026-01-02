@@ -29,12 +29,11 @@
         .answer-dock { box-shadow: 0 -4px 20px rgba(0,0,0,0.05); }
 
         .reveal-row { transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .reveal-row.active { 
-            transform: scale(1.02); 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-            background-color: #fff; 
+        .reveal-row.active {
+            transform: scale(1.02);
+            background-color: #fff;
             z-index: 50;
-            border-color: transparent; 
+            border-color: transparent;
         }
         
         .bg-correct { background-color: #10B981 !important; } 
@@ -45,8 +44,8 @@
 
         .math-input-container { position: relative; }
         .math-input-real {
-            color: transparent; 
-            caret-color: #2563EB; 
+            color: transparent;
+            caret-color: #2563EB;
             background: transparent;
             z-index: 10;
             position: relative;
@@ -58,8 +57,8 @@
             pointer-events: none;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            padding-left: 1rem; 
+            justify-content: flex-start; /* Left align */
+            padding-left: 1rem;
             z-index: 5;
             color: #374151;
             overflow: hidden;
@@ -98,6 +97,13 @@
             line-height: 1.8;
         }
         .katex-display { margin: 0.5em 0; overflow-x: auto; overflow-y: hidden; }
+
+        /* Custom Scroll for Lists */
+        .custom-list-scroll {
+            max-height: 40vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 h-screen w-screen overflow-hidden safe-top-padding">
@@ -161,13 +167,20 @@
         </div>
     </section>
 
-    <section id="screen-waiting" class="hidden-screen h-full flex flex-col justify-center items-center bg-white text-gray-800 relative">
-        <div class="text-center">
-            <p class="text-blue-600 font-bold tracking-widest text-sm mb-4">待機中</p>
-            <div class="text-8xl font-mono font-bold mb-8 tracking-tighter text-gray-900" id="countdown">--:--</div>
-            <p class="text-gray-400 text-sm animate-pulse">開始までお待ちください</p>
+    <section id="screen-waiting" class="hidden-screen h-full flex flex-col bg-white text-gray-800 relative pt-20">
+        <div class="flex-none text-center px-6">
+            <p class="text-blue-600 font-bold tracking-widest text-sm mb-2">待機中</p>
+            <div class="text-6xl font-mono font-bold mb-4 tracking-tighter text-gray-900" id="countdown">--:--</div>
+            <p class="text-gray-400 text-xs animate-pulse mb-6">開始までお待ちください</p>
         </div>
-        <button onclick="leaveEventAndBack()" class="absolute bottom-10 text-xs text-gray-400 hover:text-red-500 transition font-bold border border-gray-200 px-4 py-2 rounded-full">
+        
+        <div class="flex-1 bg-gray-50 border-t border-gray-100 rounded-t-3xl shadow-inner p-6 overflow-hidden flex flex-col">
+            <h3 class="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">参加者リスト</h3>
+            <div id="waiting-participant-list" class="space-y-2 custom-list-scroll pb-20">
+                </div>
+        </div>
+
+        <button onclick="leaveEventAndBack()" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-xs text-gray-400 hover:text-red-500 transition font-bold border border-gray-200 px-4 py-2 rounded-full bg-white shadow-lg">
             待機をキャンセルして戻る
         </button>
     </section>
@@ -243,6 +256,12 @@
                 <p class="text-gray-500 text-sm">しばらくお待ちください</p>
             </div>
             
+            <div id="finished-participant-list-container" class="mb-8 hidden">
+                <h3 class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-left">参加者の進捗</h3>
+                <div id="finished-participant-list" class="space-y-2 custom-list-scroll p-2 bg-gray-50 rounded-lg border border-gray-100">
+                    </div>
+            </div>
+
             <div id="personal-result-area" class="hidden animate-fade-in">
                 <div class="text-center mb-8">
                     <h2 class="text-3xl font-bold text-gray-800">おつかれさまでした</h2>
@@ -395,7 +414,7 @@
             { id: 33, text: "$1$ から $100$ までの整数のうち、$5$ の倍数は何個あるか。", answer: ["20"] },
             { id: 34, text: "サイコロを1回投げて、偶数の目が出る確率は $1/a$ である。$a$ の値を求めよ。", answer: ["2"] },
             { id: 35, text: "データ $3, 5, 7, 9, 11$ の平均値を求めよ。", answer: ["7"] },
-            { id: 36, text: "$x^2 + 6x + 9 = 0$ の解を求めよ。", answer: ["-3"] },
+            { id: 36, text: "$x^2 + 6x + 9$ の解を求めよ。", answer: ["-3"] },
             { id: 37, text: "$\\sqrt{49}$ の値を求めよ。", answer: ["7"] },
             { id: 38, text: "$|-10| + |3|$ の値を求めよ。", answer: ["13"] },
             { id: 39, text: "一次関数 $y=2x-5$ において、$x=4$ のときの $y$ の値を求めよ。", answer: ["3"] },
@@ -432,6 +451,20 @@
             { id: 70, text: "$\\vec{a}=(1,2), \\vec{b}=(3,1)$ のとき、$\\vec{a} \\cdot \\vec{b}$（内積）の値を求めよ。", answer: ["5"] }
         ];
 
+        // --- BOT MASTER CONFIG (Name, Accuracy, FinishTime(sec)) ---
+        const BOT_MASTERS = [
+            // { name: "ガウス", accuracy: 1.0, finishTime: 100 }, // REMOVED (Too fast)
+            { name: "神", accuracy: 1.0, finishTime: 120 }, // ~2m
+            { name: "バナナ", accuracy: 0.5, finishTime: 110 }, // Fast but wrong
+            { name: "むきむきこあら", accuracy: 0.8, finishTime: 160 }, 
+            { name: "かわいいだけじゃだめです", accuracy: 0.9, finishTime: 180 }, // 3m
+            { name: "ジャイアントコーン", accuracy: 0.8, finishTime: 200 }, 
+            { name: "りんご大福", accuracy: 0.8, finishTime: 220 }, 
+            { name: "思考", accuracy: 0.95, finishTime: 240 }, // 4m
+            { name: "おもち", accuracy: 0.6, finishTime: 280 }, // 4.5m
+            { name: "あ", accuracy: 0.4, finishTime: 290 } // 4.5m+
+        ];
+
         let currentUser = null;
         let currentEventId = null;
         let currentEventEndTime = 0;
@@ -444,7 +477,8 @@
         let currentQuestions = []; 
         let autoPilotTimer = null;
 
-        const ADMIN_NAME = "admin"; const ADMIN_PASS = "098545";
+        const ADMIN_NAME = "admin"; 
+        const ADMIN_PASS = "098545";
 
         const screens = {
             login: document.getElementById('screen-login'), lobby: document.getElementById('screen-lobby'),
@@ -458,6 +492,7 @@
             renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '$', right: '$', display: false}]});
         }
 
+        // --- AUTH & LOBBY LOGIC ---
         document.getElementById('btn-login').addEventListener('click', async () => {
             const name = document.getElementById('input-username').value.trim();
             const pass = document.getElementById('input-passcode').value.trim();
@@ -551,7 +586,6 @@
 
                 if(evt.status === 'playing') timerHtml = `<span class="text-[10px] font-mono text-red-500 font-bold block text-right card-timer-active" data-end-time="${endTime}">--:--</span>`;
 
-                // ★ Truncate Title more aggressively for admin list
                 let displayTitle = evt.title;
                 if(displayTitle.length > 16) displayTitle = displayTitle.substring(0, 16) + "...";
 
@@ -592,7 +626,6 @@
                 currentQuestions = QUESTION_BANK.slice(0,5); 
             }
 
-            // Init dynamic arrays
             userAnswers = new Array(currentQuestions.length).fill("");
             userProgress = new Array(currentQuestions.length).fill(false);
 
@@ -601,6 +634,23 @@
             await set(ref(db, `events/${eventId}/participants/${currentUser.uid}`), { name: currentUser.name, rate: currentUser.rate, joinedAt: Date.now(), progress: userProgress });
             showScreen('waiting');
             
+            // Render Participant List in Waiting Screen (Live)
+            onValue(ref(db, `events/${eventId}/participants`), (snap) => {
+                const listEl = document.getElementById('waiting-participant-list');
+                listEl.innerHTML = "";
+                if(snap.exists()) {
+                    const parts = snap.val();
+                    Object.values(parts).forEach(p => {
+                        const rateDisplay = p.rate ? `R.${Math.floor(p.rate)}` : "-";
+                        listEl.innerHTML += `
+                        <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex justify-between items-center animate-fade-in">
+                            <span class="font-bold text-gray-700 truncate w-32">${p.name}</span>
+                            <span class="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-1 rounded-full">${rateDisplay}</span>
+                        </div>`;
+                    });
+                }
+            });
+
             if(countdownInterval) clearInterval(countdownInterval);
             const timerEl = document.getElementById('countdown');
             countdownInterval = setInterval(() => {
@@ -621,6 +671,25 @@
                 }
                 if (s === "judging") { resetFinishedScreen(); showScreen('finished'); }
                 if (s === "finished") { showPersonalResult(); } 
+            });
+
+            // Listen for progress to show in finished screen (Waiting for others)
+            onValue(ref(db, `events/${eventId}/participants`), (snap) => {
+                const finishListContainer = document.getElementById('finished-participant-list-container');
+                const finishList = document.getElementById('finished-participant-list');
+                if(!document.getElementById('screen-finished').classList.contains('hidden-screen') && snap.exists()) {
+                     finishList.innerHTML = "";
+                     const parts = snap.val();
+                     Object.values(parts).forEach(p => {
+                         let squares = (p.progress||[]).map(d => `<div class="w-2.5 h-2.5 rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
+                         finishList.innerHTML += `
+                         <div class="bg-white p-2 rounded border border-gray-100 flex justify-between items-center">
+                             <span class="text-xs font-bold text-gray-700 truncate w-24">${p.name}</span>
+                             <div class="flex gap-0.5">${squares}</div>
+                         </div>`;
+                     });
+                     finishListContainer.classList.remove('hidden');
+                }
             });
         };
 
@@ -729,12 +798,14 @@
             document.getElementById('user-status-msg').innerText = "集計中";
             document.getElementById('user-status-msg').className = "animate-pulse bg-blue-100 text-blue-600 px-4 py-1 rounded-full text-sm font-bold";
             document.getElementById('personal-result-area').classList.add('hidden');
+            document.getElementById('finished-participant-list-container').classList.remove('hidden'); // Show progress list
         }
 
         async function showPersonalResult() {
             showScreen('finished');
             document.getElementById('user-status-msg').innerText = "結果発表 / Results Released";
             document.getElementById('user-status-msg').className = "bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold";
+            document.getElementById('finished-participant-list-container').classList.add('hidden'); // Hide progress list on result
             const area = document.getElementById('personal-result-area');
             const list = document.getElementById('answer-review-list');
             
@@ -746,6 +817,7 @@
             const myAnswers = ansSnap.exists() ? ansSnap.val() : {};
 
             if(myData) {
+                // Client side update for display immediately, though admin also updates it
                 await update(ref(db, `users/${currentUser.uid}`), { rate: myData.newRate });
                 document.getElementById('my-rank-disp').innerText = myData.rank + "位";
                 document.getElementById('my-rate-disp').innerText = Math.floor(myData.newRate);
@@ -774,6 +846,7 @@
             }
         }
 
+        // --- ADMIN & BOT LOGIC ---
         function initAdminDashboard() {
             const grid = document.getElementById('admin-grid');
             const formContainer = document.getElementById('create-event-form');
@@ -810,6 +883,23 @@
                     status: "waiting", participants: {},
                     questionIds: selectedIds 
                 });
+                
+                // ★ STAGGERED BOT ENTRY
+                const delays = [7000, 17000, 24000, 34000, 41000];
+                const shuffledBots = [...BOT_MASTERS].sort(() => 0.5 - Math.random()).slice(0, 5);
+                shuffledBots.forEach((bot, index) => {
+                    setTimeout(async () => {
+                        const botId = "bot_" + bot.name;
+                        // Ensure bot exists in users
+                        const botUserRef = ref(db, `users/${botId}`);
+                        const botSnap = await get(botUserRef);
+                        const currentBotRate = botSnap.exists() ? botSnap.val().rate : 1000;
+                        if(!botSnap.exists()) await set(botUserRef, { uid: botId, name: bot.name, rate: 1000 });
+                        // Add to participants
+                        await update(ref(db, `events/${eventId}/participants/${botId}`), { name: bot.name, rate: currentBotRate, isBot: true, accuracy: bot.accuracy, finishTime: bot.finishTime, progress: new Array(selectedIds.length).fill(false) });
+                    }, delays[index]); 
+                });
+
                 alert("作成完了。");
                 formContainer.classList.add('hidden');
                 toggleBtn.innerText = "＋ 新規イベント作成";
@@ -869,6 +959,7 @@
 
             function watchEvent(eventId) {
                 currentEventId = eventId;
+                const grid = document.getElementById('admin-grid');
                 grid.innerHTML = ""; 
                 if(autoPilotTimer) clearInterval(autoPilotTimer);
 
@@ -883,7 +974,16 @@
                     if(currentEventData.status === 'playing') {
                         const endTime = currentEventData.startTime + (currentEventData.duration * 60 * 1000);
                         const left = endTime - Date.now();
-                        if(left <= 0) stopAndJudge(eventId); 
+                        
+                        // Check if ALL participants finished
+                        const parts = currentEventData.participants || {};
+                        const allFinished = Object.keys(parts).length > 0 && Object.values(parts).every(p => p.progress && p.progress.every(b => b));
+
+                        if(left <= 0 || allFinished) stopAndJudge(eventId); 
+                        // ★ BOT SOLVING LOGIC INJECTION
+                        Object.entries(currentEventData.participants || {}).forEach(([uid, p]) => {
+                            if(p.isBot) simulateBotSolving(eventId, uid, p, currentEventData.questionIds);
+                        });
                     }
                 }, 1000);
 
@@ -915,7 +1015,6 @@
                             grid.innerHTML = "";
                             ranking.forEach(r => {
                                 let squares = r.results.map(res => `<div class="${s.sq} rounded-sm ${res?'bg-correct':'bg-wrong'}"></div>`).join('');
-                                // ★ Modified Rank Display (#1 -> 1位) and added flex-wrap for squares
                                 grid.innerHTML += `
                                 <div id="grid-card-${r.uid}" onclick="window.kickUser('${r.uid}', '${r.name}')" class="${s.card} rounded bg-white border border-gray-100 shadow-sm flex flex-col justify-between gap-2 cursor-pointer hover:bg-red-50 hover:border-red-300 transition duration-200" title="クリックして削除">
                                     <div class="font-bold text-gray-700 truncate ${s.name}">${r.name}</div>
@@ -930,7 +1029,7 @@
                         Object.entries(evt.participants).forEach(([uid, p]) => {
                             if(!document.getElementById(`grid-card-${uid}`)) {
                                 let squares = (p.progress||[]).map(d => `<div class="${s.sq} rounded-sm ${d?'bg-blue-600':'bg-gray-200'}"></div>`).join('');
-                                let readyText = p.rate ? `レート${Math.floor(p.rate)}` : "READY"; // ★ Modified Rate Display
+                                let readyText = p.rate ? `レート${Math.floor(p.rate)}` : "READY";
                                 const html = `
                                 <div id="grid-card-${uid}" onclick="window.kickUser('${uid}', '${p.name}')" class="${s.card} rounded bg-white border border-gray-100 shadow-sm flex flex-col justify-between gap-2 cursor-pointer hover:bg-red-50 hover:border-red-300 transition duration-200" title="クリックして削除">
                                     <div class="font-bold text-gray-700 truncate ${s.name}">${p.name}</div>
@@ -958,6 +1057,30 @@
                         grid.innerHTML = '<p class="text-xs text-gray-300 p-4">No participants yet.</p>';
                     }
                 });
+            }
+
+            // ★ Bot Simulation Logic
+            async function simulateBotSolving(eventId, botId, bot, questionIds) {
+                if(!bot.progress) bot.progress = new Array(questionIds.length).fill(false);
+                const nextQIndex = bot.progress.indexOf(false);
+                if(nextQIndex === -1) return;
+
+                // ★ Speed Constraint: 3s check (Saved in Firebase per bot participant)
+                if (bot.lastAnswerTime && (Date.now() - bot.lastAnswerTime < 3000)) return;
+                
+                // Calculate random chance based on target finish time
+                // Tick is 1s approx (in loop). Probability P = 1 / (TimePerQ)
+                const timePerQuestion = bot.finishTime / questionIds.length;
+                const solveChance = 2.0 / timePerQuestion; 
+
+                if(Math.random() < solveChance) {
+                    bot.progress[nextQIndex] = true;
+                    const isCorrect = Math.random() < bot.accuracy;
+                    const q = QUESTION_BANK.find(qb => qb.id === questionIds[nextQIndex]);
+                    const answer = isCorrect ? q.answer[0] : "0";
+                    await update(ref(db, `events/${eventId}/participants/${botId}`), { progress: bot.progress, lastAnswerTime: Date.now() });
+                    await set(ref(db, `answers/${eventId}/${botId}/q${nextQIndex+1}`), answer);
+                }
             }
 
             async function stopAndJudge(eventId) {
@@ -990,6 +1113,8 @@
                     userResults.push({ uid, name: p.name, results, correctCount });
                 });
                 
+                // Prepare multi-path update for ratings
+                const updates = {};
                 userResults = userResults.map(u => {
                     let score = u.correctCount * 100;
                     u.score = score;
@@ -997,8 +1122,13 @@
                     const diff = Math.floor(score * 0.1);
                     u.newRate = curRate + diff;
                     u.rateDiff = diff;
+
+                    // ★ Update actual rate in users table (Important for bots)
+                    updates[`users/${u.uid}/rate`] = u.newRate;
                     return u;
                 });
+                if(Object.keys(updates).length > 0) await update(ref(db), updates);
+
                 userResults.sort((a,b) => b.score - a.score);
                 userResults.forEach((u,i) => u.rank = i+1);
                 
